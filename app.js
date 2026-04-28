@@ -122,7 +122,7 @@ function openViewLocationModal(lat, lng, address) {
     }, 350);
 }
 // ── Config ──────────────────────────────────────────────
-const API = 'http://localhost:8000';
+const API = 'https://reliefops-backend-480788467686.asia-south1.run.app';
 let ws = null;
 let allNgos = [];
 let allTasks = [];
