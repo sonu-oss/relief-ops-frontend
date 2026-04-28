@@ -1,5 +1,5 @@
 // ── Geoapify Map Config ─────────────────────────────────
-const GEOAPIFY_KEY = 'API_KEY_HERE'; // Replace with your Geoapify API key
+const GEOAPIFY_KEY = '752592b5a3014bc0b2e46e3b9cb2c34e'; // Replace with your Geoapify API key
 let createMap = null;
 let createMarker = null;
 let viewMap = null;
