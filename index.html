@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ReliefOps — Volunteer Command Center</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@300;400;600;700&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+</head>
+
+<body>
+
+  <section class="login-screen" id="login-screen">
+    <div class="login-card">
+      <div class="login-head">
+        <div class="logo-mark" style="justify-content:center;margin-bottom:14px">
+          <div class="logo-icon">+</div>
+          <div>
+            <div class="logo-text">ReliefOps</div>
+            <div class="logo-sub">Session login</div>
+          </div>
+        </div>
+        <div class="login-title">Choose your workspace</div>
+        <div class="login-sub" id="auth-subtitle">Create an account to start saving your session</div>
+      </div>
+
+      <div class="auth-tabs">
+        <button class="btn auth-tab active" type="button" id="signup-tab"
+          onclick="setAuthMode('signup')">Signup</button>
+        <button class="btn auth-tab" type="button" id="login-tab" onclick="setAuthMode('login')">Login</button>
+      </div>
+
+      <div class="role-grid">
+        <button class="role-card selected" type="button" data-role="ngo" onclick="selectRole('ngo')">
+          <div class="role-icon">+</div>
+          <div class="role-title">NGO Coordinator</div>
+          <div class="role-desc">Manage priority tasks, volunteer assignment, roster status, and AI suggestions.</div>
+        </button>
+        <button class="role-card" type="button" data-role="volunteer" onclick="selectRole('volunteer')">
+          <div class="role-icon">*</div>
+          <div class="role-title">Volunteer</div>
+          <div class="role-desc">View your current assignment, update availability, and mark task progress.</div>
+        </button>
+      </div>
+
+      <form class="login-form" onsubmit="login(event)">
+        <div>
+          <label class="form-label" id="login-name-label">Name</label>
+          <input class="form-input" id="login-name" type="text" autocomplete="name"
+            placeholder="Your name or organization" />
+        </div>
+        <div id="login-email-row">
+          <label class="form-label">Email</label>
+          <input class="form-input" id="login-email" type="email" autocomplete="username"
+            placeholder="you@example.com" />
+        </div>
+        <div>
+          <label class="form-label">Password</label>
+          <input class="form-input" id="login-password" type="password" autocomplete="current-password"
+            placeholder="Any password" />
+        </div>
+        <div class="hidden" id="volunteer-skills-row">
+          <label class="form-label">My skills</label>
+          <div class="checkbox-grid" id="login-skills"></div>
+        </div>
+        <div class="login-error" id="login-error"></div>
+        <button class="btn btn-primary" type="submit" id="auth-submit" style="justify-content:center">Signup</button>
+      </form>
+    </div>
+  </section>
+
+  <div class="shell hidden" id="ngo-dashboard">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="logo">
+        <div class="logo-mark">
+          <div class="logo-icon">🛡</div>
+          <div>
+            <div class="logo-text">ReliefOps</div>
+            <div class="logo-sub">NGO Command Center</div>
+            <div class="sidebar-role"><span class="role-chip">NGO</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-label">Operations</div>
+        <button class="nav-item active" onclick="setPage('dashboard')">
+          <span class="icon">⬡</span> Dashboard
+        </button>
+        <button class="nav-item" onclick="openModal()">
+          <span class="icon">＋</span> Add Task
+          <span class="nav-badge" id="pending-count">0</span>
+        </button>
+        <button class="nav-item" onclick="setPage('volunteers')">
+          <span class="icon">◎</span> Volunteers
+          <span class="nav-badge green" id="avail-count">0</span>
+        </button>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-label">System</div>
+        <button class="nav-item" onclick="triggerReassign()">
+          <span class="icon">↺</span> Re-assign all
+        </button>
+        <button class="nav-item" onclick="loadData()">
+          <span class="icon">⟳</span> Refresh
+        </button>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="status-chip">
+          <div class="dot"></div>
+          <span style="font-size:11px">Live session</span>
+        </div>
+        <button class="btn logout-btn" onclick="logout()">Logout</button>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+      <div class="topbar">
+        <div>
+          <div class="page-title">Operations Dashboard</div>
+          <div class="page-sub">Real-time volunteer & task management</div>
+        </div>
+        <div class="topbar-actions">
+          <div class="live-badge">
+            <div class="dot"></div>LIVE
+          </div>
+          <button class="btn btn-primary" onclick="openModal()">＋ New Task</button>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-row">
+        <div class="stat-card green">
+          <div class="stat-icon">👥</div>
+          <div class="stat-value" id="stat-volunteers">—</div>
+          <div class="stat-label">Total Volunteers</div>
+          <div class="stat-delta up" id="stat-avail-delta">— available</div>
+        </div>
+        <div class="stat-card amber">
+          <div class="stat-icon">📋</div>
+          <div class="stat-value" id="stat-tasks">—</div>
+          <div class="stat-label">Active Tasks</div>
+          <div class="stat-delta" id="stat-pending-delta" style="color:var(--warn)">— pending</div>
+        </div>
+        <div class="stat-card red">
+          <div class="stat-icon">🔴</div>
+          <div class="stat-value" id="stat-critical">—</div>
+          <div class="stat-label">Critical Priority</div>
+          <div class="stat-delta down">Needs immediate action</div>
+        </div>
+        <div class="stat-card blue">
+          <div class="stat-icon">✓</div>
+          <div class="stat-value" id="stat-assigned">—</div>
+          <div class="stat-label">Assigned Tasks</div>
+          <div class="stat-delta up">Volunteers deployed</div>
+        </div>
+      </div>
+
+      <!-- Content grid -->
+      <div class="content-grid">
+        <!-- Left: Task board -->
+        <div>
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title">Task Priority Queue</div>
+              <div class="tabs">
+                <button class="tab active" onclick="filterTasks('all', this)">All</button>
+                <button class="tab" onclick="filterTasks('pending', this)">Pending</button>
+                <button class="tab" onclick="filterTasks('assigned', this)">Assigned</button>
+                <button class="tab" onclick="filterTasks('done', this)">Done</button>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div class="task-list" id="task-list">
+                <div class="empty">
+                  <div class="empty-icon">📭</div>
+                  <p>No tasks yet. Add one to get started.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- AI Suggestions -->
+          <div class="panel ai-panel">
+            <div class="panel-header">
+              <div class="panel-title">🤖 AI Suggestions</div>
+              <div class="panel-meta" id="sug-time">—</div>
+            </div>
+            <div class="panel-body">
+              <div class="suggestion-list" id="suggestion-list">
+                <div class="empty">
+                  <div class="empty-icon">💡</div>
+                  <p>Suggestions appear after tasks are created.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Volunteers -->
+        <div>
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title">Volunteer Roster</div>
+              <div class="panel-meta" id="vol-meta">Loading...</div>
+            </div>
+            <div class="panel-body">
+              <div class="vol-list" id="vol-list">
+                <div class="empty">
+                  <div class="empty-icon">👤</div>
+                  <p>No volunteers registered.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="shell hidden" id="volunteer-dashboard">
+    <aside class="sidebar">
+      <div class="logo">
+        <div class="logo-mark">
+          <div class="logo-icon">*</div>
+          <div>
+            <div class="logo-text">ReliefOps</div>
+            <div class="logo-sub">Volunteer Portal</div>
+            <div class="sidebar-role"><span class="role-chip">Volunteer</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">My Shift</div>
+        <button class="nav-item volunteer-nav active" onclick="setVolunteerView('task', this)"><span
+            class="icon">+</span> Assigned Task</button>
+        <button class="nav-item volunteer-nav" onclick="setVolunteerView('profile', this)"><span class="icon">*</span>
+          Profile</button>
+        <button class="nav-item volunteer-nav" onclick="setVolunteerView('nearby', this)"><span class="icon">=</span>
+          Nearby Tasks</button>
+        <button class="nav-item volunteer-nav" onclick="setVolunteerView('activity', this)"><span class="icon">✓</span>
+          Activity Log</button>
+      </div>
+      <div class="sidebar-footer">
+        <div class="status-chip">
+          <div class="dot"></div>
+          <span style="font-size:11px">Session active</span>
+        </div>
+        <button class="btn logout-btn" onclick="logout()">Logout</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="volunteer-main">
+        <div class="topbar">
+          <div>
+            <div class="page-title">Volunteer Portal</div>
+            <div class="page-sub">Assignment status and field activity</div>
+          </div>
+          <div class="topbar-actions">
+            <div class="live-badge">
+              <div class="dot"></div>LIVE
+            </div>
+          </div>
+        </div>
+
+        <div class="volunteer-stack">
+          <section class="assigned-card volunteer-section" data-volunteer-view="task" id="my-task-card"></section>
+
+          <section class="panel volunteer-section" data-volunteer-view="profile">
+            <div class="panel-header">
+              <div class="panel-title">My Profile</div>
+              <div class="panel-meta" id="profile-state">Available</div>
+            </div>
+            <div class="panel-body" id="profile-panel"></div>
+          </section>
+
+          <section class="panel volunteer-section" data-volunteer-view="nearby">
+            <div class="panel-header">
+              <div class="panel-title">Nearby Tasks</div>
+              <div class="panel-meta">Read-only priority queue</div>
+            </div>
+            <div class="panel-body">
+              <div class="nearby-list" id="nearby-list"></div>
+            </div>
+          </section>
+
+          <section class="panel volunteer-section" data-volunteer-view="activity">
+            <div class="panel-header">
+              <div class="panel-title">My Activity Log</div>
+              <div class="panel-meta" id="activity-count">0 complete</div>
+            </div>
+            <div class="panel-body">
+              <div class="activity-list" id="activity-list"></div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Add Task Modal -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal">
+      <div class="modal-title">Add New Task</div>
+      <div class="form-row">
+        <label class="form-label">Task title</label>
+        <input class="form-input" id="f-title" placeholder="e.g. Medical triage at sector 4" />
+      </div>
+      <div class="form-row">
+        <label class="form-label">Required skill</label>
+        <select class="form-select" id="f-skill">
+          <option value="first_aid">First Aid</option>
+          <option value="driving">Driving</option>
+          <option value="rescue">Rescue</option>
+          <option value="logistics">Logistics</option>
+          <option value="communication">Communication</option>
+          <option value="counseling">Counseling</option>
+        </select>
+      </div>
+      <div class="form-row-2">
+        <div class="form-row" style="margin:0">
+          <label class="form-label">Urgency (1–5)</label>
+          <input class="form-input" id="f-urgency" type="number" min="1" max="5" value="3" />
+        </div>
+        <div class="form-row" style="margin:0">
+          <label class="form-label">Lives at risk</label>
+          <input class="form-input" id="f-lives" type="number" min="0" value="10" />
+        </div>
+      </div>
+      <div class="form-row" style="position: relative;">
+        <label class="form-label">Location</label>
+        <input class="form-input" id="location-search" placeholder="Search address..." autocomplete="off" />
+        <div id="suggestions"
+          style="position:absolute; top:calc(100% - 10px); left:0; right:0; background:var(--surface); z-index:1000; border:1px solid var(--border); border-radius:var(--radius); max-height:150px; overflow-y:auto; display:none;">
+        </div>
+        <div id="task-map" style="height: 250px; width: 100%; border-radius: 10px; margin-top: 8px;"></div>
+        <div id="address-display"
+          style="color: #22d3a0; font-family: var(--mono); font-size: 11px; margin-top: 8px; padding: 6px; background: var(--green-soft); border-radius: var(--radius);">
+          📍 No location selected</div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="submitTask()">Create Task</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- View Location Modal -->
+  <div class="modal-overlay" id="view-location-modal">
+    <div class="modal">
+      <div class="modal-title">📍 Task Location</div>
+      <div id="view-map" style="height: 300px; width: 100%; border-radius: 10px;"></div>
+      <div id="view-address"
+        style="color: var(--text); font-family: var(--mono); font-size: 12px; margin-top: 12px; margin-bottom: 20px; text-align: center;">
+      </div>
+      <div class="modal-footer">
+        <button class="btn"
+          onclick="document.getElementById('view-location-modal').classList.remove('open')">Close</button>
+        <a class="btn btn-primary" id="google-maps-link" href="#" target="_blank">Open in Google Maps →</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast container -->
+  <div class="toast-container" id="toasts"></div>
+
+  <script src="app.js"></script>
+</body>
+
+</html>
